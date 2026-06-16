@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.nio.charset.StandardCharsets;
 import java.net.URI;
 import org.springframework.http.HttpHeaders;
@@ -52,7 +53,7 @@ public class DuxWebApiService {
         KeycloakTokenResponse token = tokenService.getToken();
 
         return restClient.get()
-                .uri(trimTrailingSlash(properties.stageApiBaseUrl()) + "/api/Document/getDocument/" + documentId)
+                .uri(trimTrailingSlash(upstreamApiBaseUrl()) + "/api/Document/getDocument/" + documentId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token.accessToken())
                 .exchange((request, response) -> {
                     String body = readBody(response);
@@ -67,10 +68,129 @@ public class DuxWebApiService {
         KeycloakTokenResponse token = tokenService.getToken();
 
         return restClient.post()
-                .uri(trimTrailingSlash(properties.stageApiBaseUrl()) + "/api/Activite/Userbylogin")
+                .uri(trimTrailingSlash(upstreamApiBaseUrl()) + "/api/Activite/Userbylogin")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token.accessToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(requestBody)
+                .exchange((request, response) -> {
+                    String body = readBody(response);
+                    return ResponseEntity
+                            .status(response.getStatusCode())
+                            .contentType(response.getHeaders().getContentType())
+                            .body(body);
+                });
+    }
+
+    public ResponseEntity<String> getProspects(String repres) {
+        KeycloakTokenResponse token = tokenService.getToken();
+
+        URI uri = UriComponentsBuilder
+                .fromUriString(trimTrailingSlash(upstreamApiBaseUrl()))
+                .pathSegment(
+                        "api",
+                        "tier",
+                        "getAllTierByType",
+                        "9",
+                        repres,
+                        "11",
+                        "2026-01-01 00:00:00",
+                        "2026-12-31 23:59:59",
+                        "false",
+                        "false",
+                        "false",
+                        "false",
+                        "false",
+                        "false",
+                        "dateCrea",
+                        "null"
+                )
+                .build()
+                .encode()
+                .toUri();
+
+        return restClient.post()
+                .uri(uri)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token.accessToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(detailsDoc2Body())
+                .exchange((request, response) -> {
+                    String body = readBody(response);
+                    return ResponseEntity
+                            .status(response.getStatusCode())
+                            .contentType(response.getHeaders().getContentType())
+                            .body(body);
+                });
+    }
+
+    public ResponseEntity<String> getClients(String repres) {
+        KeycloakTokenResponse token = tokenService.getToken();
+
+        URI uri = UriComponentsBuilder
+                .fromUriString(trimTrailingSlash(upstreamApiBaseUrl()))
+                .pathSegment(
+                        "api",
+                        "tier",
+                        "getAllTierByType",
+                        "1",
+                        repres,
+                        "11",
+                        "2026-01-01 00:00:00",
+                        "2026-12-31 23:59:59",
+                        "false",
+                        "false",
+                        "false",
+                        "false",
+                        "false",
+                        "false",
+                        "dateTrans",
+                        "false"
+                )
+                .build()
+                .encode()
+                .toUri();
+
+        return restClient.post()
+                .uri(uri)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token.accessToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(detailsDoc2Body())
+                .exchange((request, response) -> {
+                    String body = readBody(response);
+                    return ResponseEntity
+                            .status(response.getStatusCode())
+                            .contentType(response.getHeaders().getContentType())
+                            .body(body);
+                });
+    }
+
+    public ResponseEntity<String> getDevis(String repres) {
+        KeycloakTokenResponse token = tokenService.getToken();
+
+        URI uri = UriComponentsBuilder
+                .fromUriString(trimTrailingSlash(upstreamApiBaseUrl()))
+                .pathSegment(
+                        "api",
+                        "DetailsDoc2",
+                        "2026-06-01",
+                        "2026-06-30 23:59:59",
+                        "11",
+                        repres,
+                        "DevC",
+                        "all",
+                        "false",
+                        "false",
+                        "null",
+                        "false"
+                )
+                .build()
+                .encode()
+                .toUri();
+
+        return restClient.post()
+                .uri(uri)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token.accessToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(detailsDoc2Body())
                 .exchange((request, response) -> {
                     String body = readBody(response);
                     return ResponseEntity
@@ -85,7 +205,7 @@ public class DuxWebApiService {
         String idTier = getUserIdByLogin(token, requestBody.login());
 
         URI uri = UriComponentsBuilder
-                .fromUriString(trimTrailingSlash(properties.stageApiBaseUrl()))
+                .fromUriString(trimTrailingSlash(upstreamApiBaseUrl()))
                 .pathSegment(
                         "api",
                         "DetailsDoc2",
@@ -119,10 +239,30 @@ public class DuxWebApiService {
     }
 
     private String trimTrailingSlash(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException("Upstream API base URL is not configured");
+        }
+
         while (value.endsWith("/")) {
             value = value.substring(0, value.length() - 1);
         }
         return value;
+    }
+
+    private String upstreamApiBaseUrl() {
+        return firstNonBlank(properties.stageApiBaseUrl(), properties.apiBaseUrl());
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        if (primary != null && !primary.isBlank()) {
+            return primary;
+        }
+
+        if (fallback != null && !fallback.isBlank()) {
+            return fallback;
+        }
+
+        throw new IllegalStateException("No upstream API base URL configured");
     }
 
     private String detailsDocIdArticle(String idArticle) {
@@ -154,7 +294,7 @@ public class DuxWebApiService {
 
     private String getUserIdByLogin(KeycloakTokenResponse token, String login) throws IOException {
         String body = restClient.post()
-                .uri(trimTrailingSlash(properties.stageApiBaseUrl()) + "/api/Activite/Userbylogin")
+                .uri(trimTrailingSlash(upstreamApiBaseUrl()) + "/api/Activite/Userbylogin")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token.accessToken())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(new UserByLoginRequest("Default", true, login))

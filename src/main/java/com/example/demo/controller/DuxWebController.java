@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -47,8 +48,45 @@ public class DuxWebController {
         return apiService.userByLogin(request);
     }
 
-    @PostMapping(value = "/details-doc2", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> detailsDoc2(@RequestBody DetailsDoc2Request request) throws IOException {
-        return apiService.detailsDoc2(request);
+    @GetMapping(value = "/prospects/{repres}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> getProspects(@PathVariable String repres) {
+        return apiService.getProspects(repres);
+    }
+
+    @GetMapping(value = "/clients/{repres}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> getClients(@PathVariable String repres) {
+        return apiService.getClients(repres);
+    }
+
+    @GetMapping(value = "/devis/{repres}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> getDevis(@PathVariable String repres) {
+        return apiService.getDevis(repres);
+    }
+
+    @GetMapping(value = "/details-doc2", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> detailsDoc2(
+            @RequestParam(name = "from") String from,
+            @RequestParam(name = "to") String to,
+            @RequestParam(name = "login") String login,
+            @RequestParam(name = "repres") String repres,
+            @RequestParam(name = "codeDoc") String codeDoc,
+            @RequestParam(name = "idEtat") String idEtat,
+            @RequestParam(name = "all") boolean all,
+            @RequestParam(name = "allDocuments") boolean allDocuments,
+            @RequestParam(name = "idArticle", defaultValue = "null") String idArticle,
+            @RequestParam(name = "affichAvanc") boolean affichAvanc
+    ) throws IOException {
+        return apiService.detailsDoc2(new DetailsDoc2Request(
+                from,
+                to,
+                login,
+                repres,
+                codeDoc,
+                idEtat,
+                all,
+                allDocuments,
+                idArticle,
+                affichAvanc
+        ));
     }
 }
